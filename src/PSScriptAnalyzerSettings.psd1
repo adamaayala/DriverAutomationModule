@@ -21,6 +21,7 @@
     ExcludeRules = @(
         'PSAvoidUsingWriteHost'
         'PSUseShouldProcessForStateChangingFunctions'
+        'PSAvoidUsingConvertToSecureStringWithPlainText'
     )
     #________________________________________
     #Rules
