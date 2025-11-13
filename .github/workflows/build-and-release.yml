@@ -74,15 +74,34 @@ jobs:
             src/Artifacts/ccReport/**
           retention-days: 30
 
+  debug:
+    name: Debug Context
+    runs-on: windows-latest
+    if: always()
+    needs: build
+    steps:
+      - name: Show workflow context
+        shell: pwsh
+        run: |
+          Write-Host "Git ref: ${{ github.ref }}"
+          Write-Host "Event name: ${{ github.event_name }}"
+          Write-Host "Tag name: ${{ github.ref_name }}"
+          Write-Host "Ref type: ${{ github.ref_type }}"
+          Write-Host "Is tag starting with 'v': ${{ startsWith(github.ref, 'refs/tags/v') }}"
+          Write-Host "Build job result: ${{ needs.build.result }}"
+          Write-Host "Release condition check:"
+          Write-Host "  - Build success: ${{ needs.build.result == 'success' }}"
+          Write-Host "  - Is tag 'v*': ${{ startsWith(github.ref, 'refs/tags/v') }}"
+          Write-Host "  - Is workflow_dispatch: ${{ github.event_name == 'workflow_dispatch' }}"
+          Write-Host "  - Should run release: ${{ needs.build.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}"
+
   release:
     name: Create Release
     runs-on: windows-latest
     needs: build
     permissions:
       contents: write
-    if: |
-      needs.build.result == 'success' &&
-      (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    if: needs.build.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
 
     steps:
       - name: Checkout code
@@ -96,6 +115,9 @@ jobs:
           Write-Host "Git ref: ${{ github.ref }}"
           Write-Host "Event name: ${{ github.event_name }}"
           Write-Host "Tag name: ${{ github.ref_name }}"
+          Write-Host "Ref type: ${{ github.ref_type }}"
+          Write-Host "Build result: ${{ needs.build.result }}"
+          Write-Host "Is tag: ${{ startsWith(github.ref, 'refs/tags/v') }}"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
