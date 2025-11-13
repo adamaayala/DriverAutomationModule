@@ -1,0 +1,154 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PowerShell
+        uses: actions/setup-powershell@v1
+        with:
+          pwsh-version: '7.4'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          $requiredModules = @(
+            'InvokeBuild',
+            'Pester',
+            'PSScriptAnalyzer'
+          )
+
+          foreach ($module in $requiredModules) {
+            Write-Host "Installing $module..."
+            Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber -SkipPublisherCheck
+          }
+
+      - name: Run build
+        shell: pwsh
+        working-directory: ./src
+        run: |
+          Import-Module InvokeBuild
+          Invoke-Build -Task BuildNoIntegration
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-artifacts
+          path: |
+            src/Artifacts/**
+            src/Archive/**
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            src/Artifacts/testOutput/**
+            src/Artifacts/ccReport/**
+          retention-days: 30
+
+  release:
+    name: Create Release
+    runs-on: windows-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: module-artifacts
+          path: ./artifacts
+
+      - name: Get module version
+        id: module-version
+        shell: pwsh
+        run: |
+          $manifestPath = './src/DriverAutomationModule/DriverAutomationModule.psd1'
+          $manifest = Import-PowerShellDataFile -Path $manifestPath
+          $version = $manifest.ModuleVersion
+          Write-Host "Module version: $version"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Prepare release files
+        shell: pwsh
+        run: |
+          $releaseDir = './release-files'
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+
+          $archiveFile = Get-ChildItem -Path './artifacts' -Filter '*.zip' -Recurse | Select-Object -First 1
+          if ($archiveFile) {
+            Copy-Item -Path $archiveFile.FullName -Destination $releaseDir
+            Write-Host "Copied archive: $($archiveFile.Name)"
+          }
+
+          $moduleFiles = @(
+            './artifacts/src/Artifacts/DriverAutomationModule.psm1',
+            './artifacts/src/Artifacts/DriverAutomationModule.psd1',
+            './artifacts/Artifacts/DriverAutomationModule.psm1',
+            './artifacts/Artifacts/DriverAutomationModule.psd1'
+          )
+
+          foreach ($file in $moduleFiles) {
+            if (Test-Path $file) {
+              Copy-Item -Path $file -Destination $releaseDir
+              Write-Host "Copied module file: $(Split-Path $file -Leaf)"
+            }
+          }
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-files/*
+          name: Release ${{ steps.module-version.outputs.version }}
+          body: |
+            ## DriverAutomationModule ${{ steps.module-version.outputs.version }}
+
+            ### Installation
+
+            Download the module archive and extract it to your PowerShell modules directory:
+
+            ```powershell
+            # For current user
+            $modulePath = "$env:USERPROFILE\Documents\PowerShell\Modules\DriverAutomationModule"
+
+            # For all users (requires admin)
+            $modulePath = "$env:ProgramFiles\WindowsPowerShell\Modules\DriverAutomationModule"
+
+            New-Item -ItemType Directory -Path $modulePath -Force
+            Expand-Archive -Path DriverAutomationModule_*.zip -DestinationPath $modulePath -Force
+            ```
+
+            ### Files Included
+
+            - `DriverAutomationModule.psm1` - Compiled module file
+            - `DriverAutomationModule.psd1` - Module manifest
+            - `Deploy-DriverPackage.Improved.ps1` - Deployment script (available in source)
+
+            See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for usage instructions.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
