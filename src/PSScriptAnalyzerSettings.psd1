@@ -22,6 +22,7 @@
         'PSAvoidUsingWriteHost'
         'PSUseShouldProcessForStateChangingFunctions'
         'PSAvoidUsingConvertToSecureStringWithPlainText'
+        'PSAvoidUsingWMICmdlet'
     )
     #________________________________________
     #Rules

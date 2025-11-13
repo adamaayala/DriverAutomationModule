@@ -7,11 +7,12 @@ function Confirm-DriverPackageList {
     This function confirms the driver package list object and selects the latest driver package if multiple packages are found.
     The function processes driver package objects retrieved from the Configuration Manager AdminService endpoint.
     If a single package is found, it is returned as-is. If multiple packages are found, the function selects the package with the most recent SourceDate.
+    SourceDate values are provided as ISO 8601 formatted strings from the AdminService and are converted to DateTime objects for accurate chronological sorting.
     If no packages are found, the function logs an error and returns nothing.
 
     .PARAMETER DriverPackageList
     The driver package object(s) to confirm. This should be the output from Get-DriverPackageList or an AdminService response.
-    The objects should contain at least the PackageID and SourceDate properties.
+    The objects should contain at least the PackageID and SourceDate properties. SourceDate should be in ISO 8601 format (e.g., "2025-07-18T17:58:08Z").
     This parameter accepts pipeline input and can process an array of driver package objects.
 
     .EXAMPLE
@@ -37,6 +38,7 @@ function Confirm-DriverPackageList {
     .NOTES
     Part of the DriverAutomationModule module.
     The function sorts packages by SourceDate in descending order to select the latest package when multiple matches are found.
+    SourceDate strings are converted to DateTime objects during sorting to ensure accurate chronological comparison, as ISO 8601 string sorting may not always produce correct results depending on format variations.
     All operations are logged using Write-LogEntry for debugging and audit purposes.
 
     .LINK
@@ -66,6 +68,9 @@ function Confirm-DriverPackageList {
         # If multiple packages are found, select the latest one
         elseif ($pkgCount -gt 1) {
             Write-LogEntry -Message "Multiple driver packages found. Selecting the latest package." -Source $cmdletName
+            # Converting SourceDate strings to DateTime objects for chronological sorting
+            # since ISO 8601 strings can sort lexicographically, converting to DateTime
+            # makes a more accurate date/time comparison regardless of string format variations
             $packagesArray = @($DriverPackageList)
             $sortedPackages = $packagesArray | Sort-Object -Property { [DateTime]::Parse($_.SourceDate) } -Descending
             $confirmedPackage = $sortedPackages[0]
