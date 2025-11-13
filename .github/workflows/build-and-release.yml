@@ -20,10 +20,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PowerShell
-        uses: PowerShell/setup-powershell@v2
-        with:
-          pwsh-version: '7.4'
+      - name: Verify PowerShell version
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+          Write-Host "PowerShell edition: $($PSVersionTable.PSEdition)"
 
       - name: Install dependencies
         shell: pwsh
