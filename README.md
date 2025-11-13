@@ -203,7 +203,7 @@ The module includes comprehensive Pester tests for all functions. These tests ar
 Invoke-Pester -Path .\src\Tests
 ```
 
-**Note**: The module is designed to run exclusively within Task Sequences. Testing outside of a Task Sequence environment requires mocking the Task Sequence COM object.
+**Note**: The module is designed to run exclusively within Task Sequences. The module includes wrapper functions (`Get-TSValue` and `Set-TSVariable`) that abstract Task Sequence variable access, allowing these functions to be mocked in tests without requiring direct mocking of the Task Sequence COM object.
 
 ## Contributing
 
