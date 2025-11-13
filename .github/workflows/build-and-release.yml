@@ -21,13 +21,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup PowerShell
-        uses: actions/setup-powershell@v1
+        uses: actions/setup-powershell@v2
         with:
           pwsh-version: '7.4'
 
       - name: Install dependencies
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $requiredModules = @(
             'InvokeBuild',
             'Pester',
@@ -36,15 +37,18 @@ jobs:
 
           foreach ($module in $requiredModules) {
             Write-Host "Installing $module..."
-            Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber -SkipPublisherCheck
+            Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber -SkipPublisherCheck -ErrorAction Stop
+            Write-Host "$module installed successfully"
           }
 
       - name: Run build
         shell: pwsh
         working-directory: ./src
         run: |
+          $ErrorActionPreference = 'Stop'
           Import-Module InvokeBuild
           Invoke-Build -Task BuildNoIntegration
+        continue-on-error: false
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -69,7 +73,7 @@ jobs:
     name: Create Release
     runs-on: windows-latest
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: success() && startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout code
@@ -94,15 +98,23 @@ jobs:
       - name: Prepare release files
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $releaseDir = './release-files'
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+
+          Write-Host "Searching for archive file..."
+          Get-ChildItem -Path './artifacts' -Recurse | Select-Object FullName | ForEach-Object { Write-Host $_.FullName }
 
           $archiveFile = Get-ChildItem -Path './artifacts' -Filter '*.zip' -Recurse | Select-Object -First 1
           if ($archiveFile) {
             Copy-Item -Path $archiveFile.FullName -Destination $releaseDir
             Write-Host "Copied archive: $($archiveFile.Name)"
+          } else {
+            Write-Error "No archive file found in artifacts directory"
+            exit 1
           }
 
+          Write-Host "Searching for module files..."
           $moduleFiles = @(
             './artifacts/src/Artifacts/DriverAutomationModule.psm1',
             './artifacts/src/Artifacts/DriverAutomationModule.psd1',
@@ -110,12 +122,23 @@ jobs:
             './artifacts/Artifacts/DriverAutomationModule.psd1'
           )
 
+          $foundFiles = @()
           foreach ($file in $moduleFiles) {
             if (Test-Path $file) {
               Copy-Item -Path $file -Destination $releaseDir
               Write-Host "Copied module file: $(Split-Path $file -Leaf)"
+              $foundFiles += $file
             }
           }
+
+          if ($foundFiles.Count -eq 0) {
+            Write-Warning "No module files found in expected locations"
+            Write-Host "Listing artifacts directory structure:"
+            Get-ChildItem -Path './artifacts' -Recurse -File | Select-Object FullName
+          }
+
+          Write-Host "Release files prepared:"
+          Get-ChildItem -Path $releaseDir | Select-Object Name, Length
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -151,4 +174,5 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
