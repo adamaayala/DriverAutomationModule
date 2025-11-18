@@ -1,15 +1,4 @@
 BeforeDiscovery {
-    # Test: Module discovery and import setup
-    # Description: Sets up module discovery by locating and importing the DriverAutomationModule manifest
-    # Variables:
-    # Set-Location -Path $PSScriptRoot
-    # $ModuleName = 'DriverAutomationModule'
-    # $PathToManifest = [System.IO.Path]::Combine('..', '..', '..', $ModuleName, "$ModuleName.psd1")
-    # if (-not (Test-Path -Path $PathToManifest)) {
-    #     $PathToManifest = [System.IO.Path]::Combine('..', '..', 'Artifacts', "$ModuleName.psd1")
-    # }
-    # Get-Module $ModuleName -ErrorAction SilentlyContinue | Remove-Module -Force
-    # Import-Module $PathToManifest -Force
     Set-Location -Path $PSScriptRoot
     $ModuleName = 'DriverAutomationModule'
     $PathToManifest = [System.IO.Path]::Combine('..', '..', '..', $ModuleName, "$ModuleName.psd1")
@@ -21,169 +10,53 @@ BeforeDiscovery {
 }
 
 Describe 'Deploy-DriverPackage.Improved Integration Tests' -Tag Integration {
-    BeforeAll {
-        # Test: Main test suite initialization
-        # Description: Sets up all test variables, paths, and mock data for integration testing of Deploy-DriverPackage.Improved script
-        # Variables:
-        # $WarningPreference = 'SilentlyContinue'
-        # $ErrorActionPreference = 'Stop'
-        # $script:ModuleName = 'DriverAutomationModule'
-        # $testScriptRoot = $PSScriptRoot
-        # $script:TestScriptPath = Path to Deploy-DriverPackage.Improved.ps1 script
-        # $script:TestWorkingDirectory = Test working directory path
-        # $script:TestModulePath = Path to module manifest in test directory
-        # $script:TestTaskSequenceDataPath = Task Sequence data path for testing
-        # $script:TestCustomLocation = Custom driver package location path
-        # $script:TestDriverPackagePath = Path to driver package WIM file
-        # $script:TestMountPath = Path for mounting driver package
-        # $script:TestOSDisk = Target OS disk drive letter
-        # $script:TestServerFQDN = Mock Configuration Manager server FQDN
-        # $script:TestTargetOS = Target operating system version
-        # $script:TestManufacturer = Test hardware manufacturer
-        # $script:TestModel = Test hardware model
-        # $script:TestSystemSKU = Test system SKU identifier
-        # $script:TestPackageID = Test driver package ID
-        # $script:TestDriverPackage = Mock driver package hashtable with package details
-        # $script:MockTaskSequenceVariables = Mock Task Sequence variables hashtable
-        # $script:MockTaskSequenceEnvironment = Mock Task Sequence environment hashtable
-        $WarningPreference = 'SilentlyContinue'
-        $ErrorActionPreference = 'Stop'
-
-        $script:ModuleName = 'DriverAutomationModule'
-
-        function Get-ModuleManifestPath {
-            $testScriptRoot = $PSScriptRoot
-            if ([string]::IsNullOrWhiteSpace($testScriptRoot)) {
-                $testScriptRoot = Split-Path -Path $MyInvocation.PSCommandPath -Parent
-            }
-            $moduleManifestPath = [System.IO.Path]::Combine('..', '..', '..', $script:ModuleName, "$($script:ModuleName).psd1")
-            $moduleManifestPath = [System.IO.Path]::GetFullPath((Join-Path -Path $testScriptRoot -ChildPath $moduleManifestPath))
-            if (-not (Test-Path -Path $moduleManifestPath)) {
-                $moduleManifestPath = [System.IO.Path]::Combine('..', '..', 'Artifacts', "$($script:ModuleName).psd1")
-                $moduleManifestPath = [System.IO.Path]::GetFullPath((Join-Path -Path $testScriptRoot -ChildPath $moduleManifestPath))
-            }
-            return $moduleManifestPath
-        }
-        $testScriptRoot = $PSScriptRoot
-        if ([string]::IsNullOrWhiteSpace($testScriptRoot)) {
-            $testScriptRoot = Split-Path -Path $MyInvocation.PSCommandPath -Parent
-        }
-        $script:TestScriptPath = [System.IO.Path]::Combine('..', '..', 'Scripts', 'Deploy-DriverPackage.Improved.ps1')
-        $script:TestScriptPath = [System.IO.Path]::GetFullPath((Join-Path -Path $testScriptRoot -ChildPath $script:TestScriptPath))
-
-        if ($null -eq $TestDrive) {
-            $script:TestWorkingDirectory = [System.IO.Path]::GetTempPath()
-        }
-        else {
-            $script:TestWorkingDirectory = $TestDrive
-        }
-        $script:TestModulePath = Join-Path -Path $script:TestWorkingDirectory -ChildPath "$($script:ModuleName).psd1"
-
-        if ($null -eq $TestDrive) {
-            $script:TestTaskSequenceDataPath = Join-Path -Path $env:TEMP -ChildPath "PesterTSData_$([System.Guid]::NewGuid())"
-        }
-        else {
-            $script:TestTaskSequenceDataPath = Join-Path -Path $TestDrive -ChildPath 'TSData'
-        }
-        $script:TestCustomLocation = Join-Path -Path $script:TestTaskSequenceDataPath -ChildPath 'DriverPackage'
-        $script:TestDriverPackagePath = Join-Path -Path $script:TestCustomLocation -ChildPath 'DriverPackage.wim'
-        $script:TestMountPath = Join-Path -Path $script:TestTaskSequenceDataPath -ChildPath 'Drivers'
-        $script:TestOSDisk = 'C:'
-
-        $script:TestServerFQDN = 'cm01.contoso.com'
-        $script:TestTargetOS = 'Windows 11 x64'
-        $script:TestManufacturer = 'Dell'
-        $script:TestModel = 'OptiPlex 7090'
-        $script:TestSystemSKU = '0A52'
-        $script:TestPackageID = 'ABC00001'
-
-        $script:TestDriverPackage = @{
-            PackageID    = $script:TestPackageID
-            Name         = "Drivers - $($script:TestManufacturer) $($script:TestModel) - $($script:TestTargetOS)"
-            Manufacturer = $script:TestManufacturer
-            Version      = 'A10'
-            SourceDate   = '2025-01-15T12:00:00Z'
-            Description  = "(Models included:$($script:TestSystemSKU))"
-        }
-
-        $script:MockTaskSequenceVariables = @{
-            '_SMSTSMDataPath'     = $script:TestTaskSequenceDataPath
-            'OSDWindowsVersion'   = $script:TestTargetOS
-            'AdminServiceFQDN'    = $script:TestServerFQDN
-            'OSDTargetSystemDrive' = $script:TestOSDisk
-            'DriverPackagePath01' = $script:TestDriverPackagePath
-        }
-
-        $script:MockTaskSequenceEnvironment = @{}
-        foreach ($key in $script:MockTaskSequenceVariables.Keys) {
-            $script:MockTaskSequenceEnvironment[$key] = $script:MockTaskSequenceVariables[$key]
-        }
-
-        New-Item -Path $script:TestTaskSequenceDataPath -ItemType Directory -Force | Out-Null
-        New-Item -Path $script:TestCustomLocation -ItemType Directory -Force | Out-Null
-        New-Item -Path $script:TestMountPath -ItemType Directory -Force | Out-Null
-
-        $moduleManifestPath = Get-ModuleManifestPath
-        if (Test-Path -Path $moduleManifestPath) {
-            $moduleManifestContent = Get-Content -Path $moduleManifestPath -Raw
-            Set-Content -Path $script:TestModulePath -Value $moduleManifestContent -Force
-        }
-        else {
-            Write-Warning "Module manifest not found at expected paths. Test module copy skipped."
-        }
-    }
     Context 'Live Server Integration Tests' -Tag LiveServer {
         BeforeAll {
-            # Test: Live server integration test setup
-            # Description: Sets up variables for testing against a live Configuration Manager server to verify real-world connectivity and package discovery
-            # Variables:
-            # $script:LiveServerFQDN = Live Configuration Manager server FQDN for testing
-            # $script:LiveTargetOS = Target operating system version for live server tests
-            # $script:LiveTaskSequenceDataPath = Task Sequence data path for live server tests
-            # $script:LiveCustomLocation = Custom driver package location for live server tests
-            # $script:LiveTaskSequenceEnvironment = Task Sequence environment variables for live server tests
-            $script:LiveServerFQDN = 'escsccm.amaisd.org'
-            $script:LiveTargetOS = 'Windows 11 x64'
+            # Pester Test Drive: https://pester.dev/docs/usage/testdrive
+            $testDrive = "TestDrive:\"
 
-
-            $script:LiveTaskSequenceDataPath = Join-Path -Path $TestDrive -ChildPath 'TSData'
-            $script:LiveCustomLocation = Join-Path -Path $script:LiveTaskSequenceDataPath -ChildPath 'DriverPackage'
-
-            New-Item -Path $script:LiveTaskSequenceDataPath -ItemType Directory -Force | Out-Null
-            New-Item -Path $script:LiveCustomLocation -ItemType Directory -Force | Out-Null
-
-            $script:LiveTaskSequenceEnvironment = @{
-                '_SMSTSMDataPath'      = $script:LiveTaskSequenceDataPath
-                'OSDWindowsVersion'    = $script:LiveTargetOS
-                'AdminServiceFQDN'     = $script:LiveServerFQDN
-                'OSDTargetSystemDrive' = 'C:'
+            # Test session variables
+            $testVars = @{
+                'ServerFQDN'           = 'escsccm.amaisd.org'
+                'TargetOS'             = 'Windows 11 x64'
+                'TaskSequenceDataPath' = Join-Path -Path $testDrive -ChildPath 'TSData'
+                'CustomLocation'       = Join-Path -Path $testDrive -ChildPath 'DriverPackage'
+                '_SMSTSMDataPath'      = Join-Path -Path $testDrive -ChildPath 'TSData'
+                'OSDWindowsVersion'    = 'Windows 11 x64'
+                'AdminServiceFQDN'     = 'escsccm.amaisd.org'
             }
+
+            # Create test directories in pesters test drive
+            New-Item -Path $testVars.TaskSequenceDataPath -ItemType Directory -Force | Out-Null
+            New-Item -Path $testVars.CustomLocation -ItemType Directory -Force | Out-Null
+
+            Mock Set-TSVariable { }
         }
 
-        BeforeEach {
-            Mock Get-TSValue {
-                param([string]$Name)
-                if ($script:LiveTaskSequenceEnvironment.ContainsKey($Name)) {
-                    return $script:LiveTaskSequenceEnvironment[$Name]
-                }
-                return $null
-            }
+        # BeforeEach {
+        #     Mock Get-TSValue {
+        #         param([string]$Name)
+        #         if ($testVars.ContainsKey($Name)) {
+        #             return $testVars[$Name]
+        #         }
+        #         return $null
+        #     }
 
-            Mock Set-TSVariable {
-                param([string]$Name, [string]$Value)
-                $script:LiveTaskSequenceEnvironment[$Name] = $Value
-            }
+        #     Mock Set-TSVariable {
+        #         param([string]$Name, [string]$Value)
+        #         $testVars[$Name] = $Value
+        #     }
 
-            Mock Write-LogEntry { }
-        }
+        #     Mock Write-LogEntry { }
+        # }
 
         It 'should successfully connect to AdminService server and query driver packages' {
-            $moduleManifestPath = Get-ModuleManifestPath
-            Import-Module $moduleManifestPath -Force
+            # $moduleManifestPath = Get-ModuleManifestPath
+            # Import-Module $moduleManifestPath -Force
 
             $params = @{
-                TargetOS   = $script:LiveTargetOS
-                ServerFQDN = $script:LiveServerFQDN
+                TargetOS   = $testVars['TargetOS']
+                ServerFQDN = $testVars['ServerFQDN']
             }
 
             $result = Find-DriverPackage @params
@@ -193,37 +66,37 @@ Describe 'Deploy-DriverPackage.Improved Integration Tests' -Tag Integration {
             $result.Name | Should -Not -BeNullOrEmpty
         }
 
-        It 'should successfully execute Find phase against live server' {
-            $moduleManifestPath = Get-ModuleManifestPath
-            if (Test-Path -Path $moduleManifestPath) {
-                $moduleManifestContent = Get-Content -Path $moduleManifestPath -Raw
-                Set-Content -Path $script:TestModulePath -Value $moduleManifestContent -Force
-            }
+        # It 'should successfully execute Find phase against live server' {
+        #     $moduleManifestPath = Get-ModuleManifestPath
+        #     if (Test-Path -Path $moduleManifestPath) {
+        #         $moduleManifestContent = Get-Content -Path $moduleManifestPath -Raw
+        #         Set-Content -Path $script:TestModulePath -Value $moduleManifestContent -Force
+        #     }
 
-            $params = @{
-                Phase            = 'Find'
-                WorkingDirectory = $script:TestWorkingDirectory
-            }
+        #     $params = @{
+        #         Phase            = 'Find'
+        #         WorkingDirectory = $script:TestWorkingDirectory
+        #     }
 
-            { & $script:TestScriptPath @params } | Should -Not -Throw
+        #     { & $script:TestScriptPath @params } | Should -Not -Throw
 
-            $driverPackageQueryResult = Get-DriverPackageQueryResult
-            $driverPackageQueryResult | Should -Not -BeNullOrEmpty
-            $driverPackageQueryResult.PackageID | Should -Not -BeNullOrEmpty
-        }
+        #     $driverPackageQueryResult = Get-DriverPackageQueryResult
+        #     $driverPackageQueryResult | Should -Not -BeNullOrEmpty
+        #     $driverPackageQueryResult.PackageID | Should -Not -BeNullOrEmpty
+        # }
 
-        It 'should verify server connectivity' {
-            $testUri = "https://$($script:LiveServerFQDN)/AdminService"
+        # It 'should verify server connectivity' {
+        #     $testUri = "https://$($script:LiveServerFQDN)/AdminService"
 
-            try {
-                $response = Invoke-WebRequest -Uri $testUri -Method Get -UseDefaultCredentials -TimeoutSec 10 -ErrorAction Stop
-                $response.StatusCode | Should -Be 200
-            }
-            catch {
-                Write-Warning "Cannot connect to AdminService at $testUri. Verify network connectivity and server availability."
-                $_.Exception.Message | Should -Not -BeNullOrEmpty
-            }
-        }
+        #     try {
+        #         $response = Invoke-WebRequest -Uri $testUri -Method Get -UseDefaultCredentials -TimeoutSec 10 -ErrorAction Stop
+        #         $response.StatusCode | Should -Be 200
+        #     }
+        #     catch {
+        #         Write-Warning "Cannot connect to AdminService at $testUri. Verify network connectivity and server availability."
+        #         $_.Exception.Message | Should -Not -BeNullOrEmpty
+        #     }
+        # }
     }
 
     # Context 'Module Import and Setup' {

@@ -11,6 +11,7 @@ InModuleScope 'DriverAutomationModule' {
         BeforeAll {
             $WarningPreference = 'SilentlyContinue'
             $ErrorActionPreference = 'SilentlyContinue'
+            Mock Write-LogEntry { }
         }
 
         Context 'Success - Dell Manufacturer' {

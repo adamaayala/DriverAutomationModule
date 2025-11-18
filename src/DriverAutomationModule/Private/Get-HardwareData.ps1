@@ -90,6 +90,8 @@ function Get-HardwareData {
         [string]$Model
     )
 
+    $cmdletName = $MyInvocation.MyCommand.Name
+
     try {
         if (-not $Manufacturer -or -not $Model) {
             $computerSystem = Get-CimInstance -ClassName "Win32_ComputerSystem"
@@ -166,6 +168,15 @@ function Get-HardwareData {
                 break
             }
         }
+
+        Write-LogEntry -Message "Hardware data retrieved successfully." -Source $cmdletName
+
+        $logMessage = "Manufacturer: $($hardware.Manufacturer), SystemSKU: $($hardware.SystemSKU)"
+        if ($hardware.ContainsKey('Model')) {
+            $logMessage += ", Model: $($hardware.Model)"
+        }
+
+        Write-LogEntry -Message $logMessage -Source $cmdletName
 
         return $hardware
     }
