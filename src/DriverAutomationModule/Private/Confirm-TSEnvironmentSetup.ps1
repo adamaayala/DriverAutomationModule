@@ -50,7 +50,7 @@ function Confirm-TSEnvironmentSetup {
         return $true
     }
     catch {
-        Write-Host "Unable to connect to the Task Sequence Environment."
+        # Write-Host "Unable to connect to the Task Sequence Environment."
         $script:inTSEnvironment = $false
         return $false
     }
